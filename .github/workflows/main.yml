@@ -1,10 +1,44 @@
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install yt-dlp curl_cffi
+name: Direct_To_HuggingFace_CDN
 
-    - name: Run yt-dlp with Impersonation
-      run: |
-        yt-dlp --impersonate chrome \
-               --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
-               "لینکەکەی ئێرە دابنێ"
+on:
+  workflow_dispatch: # ئەمە ڕێگەت پێ دەدات بە دەستی (Manual) ڕەنی بکەیت
+
+jobs:
+  upload_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install yt-dlp curl_cffi huggingface_hub
+
+      - name: Download Video
+        run: |
+          # بەکارهێنانی impersonate بۆ تێپەڕاندنی Cloudflare
+          yt-dlp --impersonate chrome \
+                 --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+                 -o "video.mp4" \
+                 "https://tmstr4.neonhorizonworkshops.com/pl/H4sIAAAAAAAAAw3PS3aCMBQA0C0lILR01vAtEigkeUBmSKDURIvKAXX1dQX33GFEanzvhnH0Ruzu8MFVdj.otxEhZStv_KjCH4uyJaMoegqen4Q2MT8at9fYB__mQKAdfk5bFi.ZDPNUJORXhfNGk0gymxTyTHTPjc.fX5gLlfT21NVxu1IwQZXMe4rudVXLuuB0KwLF6vh.FaaaSzPBHpO_DBOZWaaR8ZIAnm403j2Y7xEW5ReuXy4O19z0d9V8bhyXTgtzNGi5ZnZ1pBaGTmBSRNF3B9GNhUtaAXn0QFLQpi7NfGmNQDSYJuBkY0H5hJOzZpZHXudJBgYfjsptT4BbPTcSgJYaaN2kuhfoWnLk_QOWxhVzQQEAAA--/master.m3u8"
+
+      - name: Upload to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }} # پێویستە ئەمە لە Settings دابنێیت
+        run: |
+          python -c "
+          from huggingface_hub import HfApi
+          api = HfApi()
+          api.upload_file(
+              path_or_fileobj='video.mp4',
+              path_in_repo='video.mp4',
+              repo_id='ناوى_ئەکاونتەکەت/ناوى_ڕیپۆکەت', 
+              repo_type='dataset',
+              token='${{ secrets.HF_TOKEN }}'
+          )"
