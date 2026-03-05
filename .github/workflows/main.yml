@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: 'لێرە لیکی .m3u8 یان هەر لینکێکی تر دابنێ'
+        description: 'لێرە لینکی .m3u8 یان هەر لینکێکی تر دابنێ'
         required: true
       file_name:
         description: 'ناوی فایلەکە لەناو Hugging Face'
@@ -18,13 +18,19 @@ jobs:
       - name: 🏗️ Setup Tools
         run: |
           sudo apt-get update -qq
+          # دابەزاندنی ffmpeg بۆ یەکخستنی پارچەکانی ڤیدیۆکە
           sudo apt-get install -y ffmpeg -qq
           pip install -q yt-dlp curl_cffi huggingface_hub
 
       - name: ⬇️ Smart & Secure Download
         run: |
+          # زیادکردنی retries بۆ ئەوەی لە کاتی پچڕانی هێڵەکەدا نەوەستێت
           yt-dlp --impersonate chrome \
                  --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+                 --retries 50 \
+                 --fragment-retries 50 \
+                 --retry-sleep 3 \
+                 --merge-output-format mp4 \
                  -o "video.mp4" \
                  "${{ github.event.inputs.video_url }}"
 
@@ -55,7 +61,11 @@ jobs:
                   repo_type='dataset',
                   token=token
               )
-              print('✅ Done! Check your Hugging Face repo.')
+              print('✅ Done! Uploaded successfully.')
+              
+              # سڕینەوەی ڤیدیۆکە لە سێرڤەری گیتھەب دوای ئەوەی بە سەرکەوتوویی نێردرا
+              os.remove('video.mp4')
+              print('🗑️ Video deleted from GitHub server successfully.')
           else:
               print('❌ Error: Video file not found! Download might have failed.')
               exit(1)
