@@ -18,12 +18,11 @@ jobs:
       - name: 🏗️ Setup Tools
         run: |
           sudo apt-get update -qq
-          # دابەزاندنی پێداویستییەکان بۆ تێپەڕاندنی Cloudflare
+          sudo apt-get install -y ffmpeg -qq
           pip install -q yt-dlp curl_cffi huggingface_hub
 
       - name: ⬇️ Smart & Secure Download
         run: |
-          # بەکارهێنانی yt-dlp لەگەڵ impersonate بۆ ئەوەی وەک Chrome دەربکەوێت
           yt-dlp --impersonate chrome \
                  --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
                  -o "video.mp4" \
@@ -43,7 +42,6 @@ jobs:
               exit(1)
               
           api = HfApi()
-          # لێرە ناوی ڕیپۆکەی خۆتم داناوەتەوە
           repo_id = 'Sarko57/sarko987'
           file_name = '${{ github.event.inputs.file_name }}'
           
