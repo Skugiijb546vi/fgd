@@ -23,18 +23,20 @@ jobs:
 
       - name: ⬇️ Smart & Secure Download
         run: |
-          # بەکارهێنانی تایبەتمەندی پەڕینەوە لەو پارچانەی کێشەیان هەیە
+          # خاوکردنەوەی خێرایی و پشوو دان بۆ ئەوەی سێرڤەرەکە بلۆکمان نەکات (Error 429)
           yt-dlp --impersonate chrome \
                  --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
                  --retries 50 \
                  --fragment-retries 50 \
-                 --retry-sleep 3 \
+                 --retry-sleep 10 \
+                 --sleep-requests 0.5 \
+                 --limit-rate 5M \
                  --skip-unavailable-fragments \
                  --ignore-errors \
                  --continue \
                  --merge-output-format mp4 \
                  -o "video.mp4" \
-                 "${{ github.event.inputs.video_url }}"
+                 "${{ github.event.inputs.video_url }}" || true
 
       - name: 🚀 Upload to Hugging Face
         env:
@@ -65,7 +67,6 @@ jobs:
               )
               print('✅ Done! Uploaded successfully.')
               
-              # سڕینەوەی ڤیدیۆکە لە سێرڤەری گیتھەب دوای ئەوەی بە سەرکەوتوویی نێردرا
               os.remove('video.mp4')
               print('🗑️ Video deleted from GitHub server successfully.')
           else:
