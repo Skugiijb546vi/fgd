@@ -18,18 +18,20 @@ jobs:
       - name: 🏗️ Setup Tools
         run: |
           sudo apt-get update -qq
-          # دابەزاندنی ffmpeg بۆ یەکخستنی پارچەکانی ڤیدیۆکە
           sudo apt-get install -y ffmpeg -qq
           pip install -q yt-dlp curl_cffi huggingface_hub
 
       - name: ⬇️ Smart & Secure Download
         run: |
-          # زیادکردنی retries بۆ ئەوەی لە کاتی پچڕانی هێڵەکەدا نەوەستێت
+          # بەکارهێنانی تایبەتمەندی پەڕینەوە لەو پارچانەی کێشەیان هەیە
           yt-dlp --impersonate chrome \
                  --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
                  --retries 50 \
                  --fragment-retries 50 \
                  --retry-sleep 3 \
+                 --skip-unavailable-fragments \
+                 --ignore-errors \
+                 --continue \
                  --merge-output-format mp4 \
                  -o "video.mp4" \
                  "${{ github.event.inputs.video_url }}"
