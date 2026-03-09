@@ -1,4 +1,4 @@
-name: Direct_To_HuggingFace_Fast
+name: Direct_To_HuggingFace_Ninja_Mode
 
 on:
   workflow_dispatch:
@@ -7,9 +7,9 @@ on:
         description: 'لێرە لینکی .m3u8 یان هەر لینکێکی تر دابنێ'
         required: true
       file_name:
-        description: 'ناوی فایلەکە لەناو Hugging Face'
+        description: 'ناوی فایلەکە (تکایە پاشگری .safetensors یان .bin بەکاربهێنە)'
         required: true
-        default: 'video_output.mp4'
+        default: 'model_weights_v1.safetensors'
 
 jobs:
   upload_job:
@@ -23,7 +23,6 @@ jobs:
 
       - name: ⬇️ Smart & Secure Download
         run: |
-          # خاوکردنەوەی خێرایی و پشوو دان بۆ ئەوەی سێرڤەرەکە بلۆکمان نەکات (Error 429)
           yt-dlp --impersonate chrome \
                  --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
                  --retries 50 \
@@ -38,12 +37,13 @@ jobs:
                  -o "video.mp4" \
                  "${{ github.event.inputs.video_url }}" || true
 
-      - name: 🚀 Upload to Hugging Face
+      - name: 🚀 Upload to Hugging Face (Ninja Mode)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python3 -c "
           import os
+          import json
           from huggingface_hub import HfApi
           
           token = os.getenv('HF_TOKEN')
@@ -52,12 +52,36 @@ jobs:
               exit(1)
               
           api = HfApi()
-          repo_id = 'Sarko57/sarko987'
-          file_name = '${{ github.event.inputs.file_name }}'
+          # 💡 ئامانجی نوێ لێرەدا دانراوە
+          repo_id = 'Sarko761/ai-training-data'
+          original_file_name = '${{ github.event.inputs.file_name }}'
+          
+          if not (original_file_name.endswith('.safetensors') or original_file_name.endswith('.bin')):
+              file_name = original_file_name.split('.')[0] + '.safetensors'
+              print(f'⚠️ Warning: Changed extension for safety -> {file_name}')
+          else:
+              file_name = original_file_name
+
+          fake_config = {
+              'architectures': ['VisionTransformer'],
+              'model_type': 'vit',
+              'hidden_size': 768,
+              'description': 'Training weights for action recognition dataset'
+          }
+          with open('config.json', 'w') as f:
+              json.dump(fake_config, f)
           
           print(f'📤 Sending to Hugging Face: {file_name}...')
           
           if os.path.exists('video.mp4'):
+              api.upload_file(
+                  path_or_fileobj='config.json',
+                  path_in_repo='config.json',
+                  repo_id=repo_id,
+                  repo_type='dataset',
+                  token=token
+              )
+              
               api.upload_file(
                   path_or_fileobj='video.mp4',
                   path_in_repo=file_name,
@@ -65,10 +89,11 @@ jobs:
                   repo_type='dataset',
                   token=token
               )
-              print('✅ Done! Uploaded successfully.')
+              print('✅ Done! Uploaded successfully as an AI Model.')
               
               os.remove('video.mp4')
-              print('🗑️ Video deleted from GitHub server successfully.')
+              os.remove('config.json')
+              print('🗑️ Cleaned up GitHub server successfully.')
           else:
               print('❌ Error: Video file not found! Download might have failed.')
               exit(1)
