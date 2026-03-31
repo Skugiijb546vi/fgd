@@ -53,7 +53,7 @@ jobs:
               
           api = HfApi()
           # 💡 ئامانجی نوێ لێرەدا دانراوە
-          repo_id = 'Sarko761/ai-training-data'
+          repo_id = 'Sarko717227/Ai_SMART'
           original_file_name = '${{ github.event.inputs.file_name }}'
           
           if not (original_file_name.endswith('.safetensors') or original_file_name.endswith('.bin')):
