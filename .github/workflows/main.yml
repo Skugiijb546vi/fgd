@@ -19,12 +19,13 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg -qq
-          pip install -q yt-dlp curl_cffi huggingface_hub
+          # لێرەدا پیتی U- مان زیاد کردووە بۆ دڵنیابوون لە نوێترین وەشان
+          pip install -qU yt-dlp curl_cffi huggingface_hub
 
       - name: ⬇️ Smart & Secure Download
         run: |
-          yt-dlp --impersonate chrome \
-                 --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+          # فەرمانی impersonate-مان لابرد چونکە user-agent بەسە
+          yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
                  --retries 50 \
                  --fragment-retries 50 \
                  --retry-sleep 10 \
@@ -52,7 +53,6 @@ jobs:
               exit(1)
               
           api = HfApi()
-          # 💡 ئامانجی نوێ لێرەدا دانراوە
           repo_id = 'Sarko717227/Ai_SMART'
           original_file_name = '${{ github.event.inputs.file_name }}'
           
