@@ -21,9 +21,9 @@ jobs:
           sudo apt-get install -y ffmpeg -qq
           pip install -qU yt-dlp curl_cffi huggingface_hub
 
-      - name: ⬇️ Smart & Secure Download (Force Web-MP4)
+      - name: ⬇️ Smart & Secure Download (Force Web-Streaming MP4)
         run: |
-          # لێرەدا فەرمانمان پێکردووە کە دەبێت ڤیدیۆکە MP4 بێت بۆ ئەوەی براوزەر بیخوێنێتەوە
+          # لێرەدا فەرمانی Fast Start مان بۆ زیاد کردووە بۆ ئەوەی لەسەر وێبسایت کار بکات
           yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
                  -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
                  --retries 50 \
@@ -35,6 +35,7 @@ jobs:
                  --ignore-errors \
                  --continue \
                  --merge-output-format mp4 \
+                 --postprocessor-args "ffmpeg:-movflags +faststart" \
                  -o "video.mp4" \
                  "${{ github.event.inputs.video_url }}" || true
 
