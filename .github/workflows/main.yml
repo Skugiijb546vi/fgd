@@ -54,7 +54,7 @@ jobs:
               exit(1)
               
           api = HfApi()
-          repo_id = 'Sarko717227/Ai_SMART'
+          repo_id = 'Sarko717227/taza'
           file_name = '${{ github.event.inputs.file_name }}'
           
           # هێشتنەوەی فایلە ساختەکە بۆ ئەوەی وەک مۆدێلی AI دەربکەوێت و ئەکاونتەکەت پارێزراو بێت
