@@ -7,9 +7,8 @@ on:
         description: 'لێرە لینکی .m3u8 یان هەر لینکێکی تر دابنێ'
         required: true
       referer_url:
-        description: 'گرنگ بۆ چارەسەری 403: لینکی ئەو وێبسایتە دابنێ کە ڤیدیۆکەی لێ پەخش دەکرێت'
+        description: 'گرنگ: لینکی ئەو وێبسایتە دابنێ کە ڤیدیۆکەی لێ پەخش دەکرێت (بۆ نموونە: https://newlinehd.com/)'
         required: true
-        default: 'https://www.zedflix.tv/'
       file_name:
         description: 'ناوی فایلەکە (تکایە تەنها .safetensors بەکاربهێنە)'
         required: true
@@ -30,9 +29,12 @@ jobs:
           VIDEO_URL: ${{ github.event.inputs.video_url }}
           REFERER_URL: ${{ github.event.inputs.referer_url }}
         run: |
+          # دەرهێنانی ناوی وێبسایتەکە بە شێوەیەکی ئۆتۆماتیکی بۆ ئەوەی لەسەر هەموو سایتێک کاربکات
+          ORIGIN_URL=$(echo "$REFERER_URL" | grep -o '^https\?://[^/]\+')
+          
           yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
                  --add-header "Referer: $REFERER_URL" \
-                 --add-header "Origin: https://www.zedflix.tv" \
+                 --add-header "Origin: $ORIGIN_URL" \
                  -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
                  --retries 50 \
                  --fragment-retries 50 \
@@ -52,7 +54,6 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           FILE_NAME: ${{ github.event.inputs.file_name }}
         run: |
-          # دروستکردنی فایلێکی پایتۆن بۆ ڕێگریکردن لە کێشەی نیشانەکان
           cat << 'EOF' > upload.py
           import os
           import json
