@@ -23,12 +23,8 @@ jobs:
 
       - name: ⬇️ Smart & Secure Download (Force Web-Streaming MP4)
         run: |
-          # لێرەدا هێدەری زیاترمان بۆ yt-dlp زیاد کردووە بۆ تێپەڕاندنی بلۆکی 403
+          # لێرەدا فەرمانی Fast Start مان بۆ زیاد کردووە بۆ ئەوەی لەسەر وێبسایت کار بکات
           yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
-                 --add-header "Referer: https://b-cdn.net/" \
-                 --add-header "Origin: https://b-cdn.net/" \
-                 --add-header "Accept: */*" \
-                 --add-header "Accept-Language: en-US,en;q=0.9" \
                  -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
                  --retries 50 \
                  --fragment-retries 50 \
@@ -73,7 +69,7 @@ jobs:
           
           print(f'📤 Sending to Hugging Face as {file_name}...')
           
-          if os.path.exists('video.mp4') and os.path.getsize('video.mp4') > 0:
+          if os.path.exists('video.mp4'):
               api.upload_file(
                   path_or_fileobj='config.json',
                   path_in_repo='config.json',
@@ -95,6 +91,6 @@ jobs:
               os.remove('config.json')
               print('🗑️ Cleaned up GitHub server successfully.')
           else:
-              print('❌ Error: Video file not found or is empty! Download definitely failed (Likely a strict 403 Block or IP Ban).')
+              print('❌ Error: Video file not found! Download might have failed.')
               exit(1)
           "
