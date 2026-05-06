@@ -6,6 +6,9 @@ on:
       video_url:
         description: 'لێرە لینکی .m3u8 یان هەر لینکێکی تر دابنێ'
         required: true
+      referer_url:
+        description: 'گرنگ بۆ چارەسەری 403: لینکی ئەو وێبسایتە دابنێ کە ڤیدیۆکەی لێ پەخش دەکرێت'
+        required: true
       file_name:
         description: 'ناوی فایلەکە (تکایە تەنها .safetensors بەکاربهێنە بۆ پارێزگاری لە ئەکاونتەکەت)'
         required: true
@@ -23,8 +26,10 @@ jobs:
 
       - name: ⬇️ Smart & Secure Download (Force Web-Streaming MP4)
         run: |
-          # لێرەدا فەرمانی Fast Start مان بۆ زیاد کردووە بۆ ئەوەی لەسەر وێبسایت کار بکات
-          yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+          # زیادکردنی impersonate و Referer بۆ تێپەڕاندنی بلۆکی سێرڤەر (403 Forbidden)
+          yt-dlp --impersonate Chrome \
+                 --add-header "Referer: ${{ github.event.inputs.referer_url }}" \
+                 --add-header "Origin: ${{ github.event.inputs.referer_url }}" \
                  -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
                  --retries 50 \
                  --fragment-retries 50 \
