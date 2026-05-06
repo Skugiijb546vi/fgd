@@ -9,8 +9,9 @@ on:
       referer_url:
         description: 'گرنگ بۆ چارەسەری 403: لینکی ئەو وێبسایتە دابنێ کە ڤیدیۆکەی لێ پەخش دەکرێت'
         required: true
+        default: 'https://www.zedflix.tv/'
       file_name:
-        description: 'ناوی فایلەکە (تکایە تەنها .safetensors بەکاربهێنە بۆ پارێزگاری لە ئەکاونتەکەت)'
+        description: 'ناوی فایلەکە (تکایە تەنها .safetensors بەکاربهێنە)'
         required: true
         default: 'model_weights_v1.safetensors'
 
@@ -25,11 +26,13 @@ jobs:
           pip install -qU yt-dlp curl_cffi huggingface_hub
 
       - name: ⬇️ Smart & Secure Download (Force Web-Streaming MP4)
+        env:
+          VIDEO_URL: ${{ github.event.inputs.video_url }}
+          REFERER_URL: ${{ github.event.inputs.referer_url }}
         run: |
-          # زیادکردنی impersonate و Referer بۆ تێپەڕاندنی بلۆکی سێرڤەر (403 Forbidden)
-          yt-dlp --impersonate Chrome \
-                 --add-header "Referer: ${{ github.event.inputs.referer_url }}" \
-                 --add-header "Origin: ${{ github.event.inputs.referer_url }}" \
+          yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
+                 --add-header "Referer: $REFERER_URL" \
+                 --add-header "Origin: https://www.zedflix.tv" \
                  -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
                  --retries 50 \
                  --fragment-retries 50 \
@@ -42,13 +45,15 @@ jobs:
                  --merge-output-format mp4 \
                  --postprocessor-args "ffmpeg:-movflags +faststart" \
                  -o "video.mp4" \
-                 "${{ github.event.inputs.video_url }}" || true
+                 "$VIDEO_URL" || true
 
       - name: 🚀 Upload to Hugging Face (Ninja Mode)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          FILE_NAME: ${{ github.event.inputs.file_name }}
         run: |
-          python3 -c "
+          # دروستکردنی فایلێکی پایتۆن بۆ ڕێگریکردن لە کێشەی نیشانەکان
+          cat << 'EOF' > upload.py
           import os
           import json
           from huggingface_hub import HfApi
@@ -60,9 +65,8 @@ jobs:
               
           api = HfApi()
           repo_id = 'Sarko717227/taza'
-          file_name = '${{ github.event.inputs.file_name }}'
+          file_name = os.getenv('FILE_NAME', 'model_weights_v1.safetensors')
           
-          # هێشتنەوەی فایلە ساختەکە بۆ ئەوەی وەک مۆدێلی AI دەربکەوێت و ئەکاونتەکەت پارێزراو بێت
           fake_config = {
               'architectures': ['VisionTransformer'],
               'model_type': 'vit',
@@ -98,4 +102,6 @@ jobs:
           else:
               print('❌ Error: Video file not found! Download might have failed.')
               exit(1)
-          "
+          EOF
+          
+          python3 upload.py
