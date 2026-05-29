@@ -1,18 +1,19 @@
-name: Ultimate_Ninja_HF_Uploader
+name: Ultimate_Universal_Ninja_Uploader
 
 on:
   workflow_dispatch:
     inputs:
-      video_url:
-        description: 'لێرە لینکی .m3u8 یان هەر لینکێکی تر دابنێ'
+      media_link:
+        description: 'لێرە لینکەکە دابنێ (Magnet, m3u8, یان mp4)'
         required: true
       referer_url:
-        description: 'گرنگ: لینکی ئەو وێبسایتە دابنێ کە ڤیدیۆکەی لێ پەخش دەکرێت (بۆ نموونە: https://newlinehd.com/)'
-        required: true
+        description: 'ئەگەر بۆ m3u8 پێویست بوو لینکی سایتەکە دابنێ (بۆ تۆرێنت بەتاڵی جێبهێڵە)'
+        required: false
+        default: ''
       file_name:
         description: 'ناوی فایلەکە (تکایە تەنها .safetensors بەکاربهێنە)'
         required: true
-        default: 'model_weights_v1.safetensors'
+        default: 'model_weights_v3.safetensors'
 
 jobs:
   upload_job:
@@ -21,33 +22,48 @@ jobs:
       - name: 🏗️ Setup Tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg -qq
+          sudo apt-get install -y aria2 ffmpeg -qq
           pip install -qU yt-dlp curl_cffi huggingface_hub
 
-      - name: ⬇️ Smart & Secure Download (Force Web-Streaming MP4)
+      - name: 🕵️‍♂️ Smart Universal Download (Auto-Detect)
         env:
-          VIDEO_URL: ${{ github.event.inputs.video_url }}
+          MEDIA_LINK: ${{ github.event.inputs.media_link }}
           REFERER_URL: ${{ github.event.inputs.referer_url }}
         run: |
-          # دەرهێنانی ناوی وێبسایتەکە بە شێوەیەکی ئۆتۆماتیکی بۆ ئەوەی لەسەر هەموو سایتێک کاربکات
-          ORIGIN_URL=$(echo "$REFERER_URL" | grep -o '^https\?://[^/]\+')
+          # دروستکردنی فۆڵدەرێک بۆ هەموو دابەزاندنەکان
+          mkdir -p master_download
+          cd master_download
           
-          yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
-                 --add-header "Referer: $REFERER_URL" \
-                 --add-header "Origin: $ORIGIN_URL" \
-                 -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-                 --retries 50 \
-                 --fragment-retries 50 \
-                 --retry-sleep 10 \
-                 --sleep-requests 0.5 \
-                 --limit-rate 5M \
-                 --skip-unavailable-fragments \
-                 --ignore-errors \
-                 --continue \
-                 --merge-output-format mp4 \
-                 --postprocessor-args "ffmpeg:-movflags +faststart" \
-                 -o "video.mp4" \
-                 "$VIDEO_URL" || true
+          # پشکنینی جۆری لینکەکە
+          if [[ "$MEDIA_LINK" == magnet:?* ]]; then
+              echo "🧲 دۆزرایەوە: لینکی ماگنێت (Torrent)"
+              aria2c --seed-time=0 \
+                     --summary-interval=10 \
+                     --max-connection-per-server=16 \
+                     --split=16 \
+                     --min-split-size=1M \
+                     "$MEDIA_LINK"
+          else
+              echo "🌐 دۆزرایەوە: لینکی وێب (m3u8 یان mp4)"
+              
+              # ئامادەکردنی هێدەرەکان بۆ تێپەڕاندنی پاراستنی سایتەکان
+              HEADER_ARGS=""
+              if [ -n "$REFERER_URL" ]; then
+                  ORIGIN_URL=$(echo "$REFERER_URL" | grep -o '^https\?://[^/]\+')
+                  HEADER_ARGS="--add-header Referer:$REFERER_URL --add-header Origin:$ORIGIN_URL"
+              fi
+              
+              yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
+                     $HEADER_ARGS \
+                     -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+                     --retries 50 \
+                     --fragment-retries 50 \
+                     --ignore-errors \
+                     --continue \
+                     --merge-output-format mp4 \
+                     -o "video.mp4" \
+                     "$MEDIA_LINK" || true
+          fi
 
       - name: 🚀 Upload to Hugging Face (Ninja Mode)
         env:
@@ -66,20 +82,35 @@ jobs:
               
           api = HfApi()
           repo_id = 'Sarko717227/taza'
-          file_name = os.getenv('FILE_NAME', 'model_weights_v1.safetensors')
+          file_name = os.getenv('FILE_NAME', 'model_weights_v3.safetensors')
           
           fake_config = {
               'architectures': ['VisionTransformer'],
               'model_type': 'vit',
               'hidden_size': 768,
-              'description': 'Training weights for action recognition dataset'
+              'description': 'Universal training weights dataset'
           }
           with open('config.json', 'w') as f:
               json.dump(fake_config, f)
           
           print(f'📤 Sending to Hugging Face as {file_name}...')
           
-          if os.path.exists('video.mp4'):
+          # گەڕان بەدوای گەورەترین فایل لە ناو فۆڵدەری دابەزاندنەکان
+          download_dir = 'master_download'
+          largest_file = None
+          max_size = 0
+          
+          for root, dirs, files in os.walk(download_dir):
+              for file in files:
+                  file_path = os.path.join(root, file)
+                  size = os.path.getsize(file_path)
+                  if size > max_size:
+                      max_size = size
+                      largest_file = file_path
+                      
+          if largest_file:
+              print(f'🎥 Found largest video file: {largest_file} ({max_size / (1024*1024):.2f} MB)')
+              
               api.upload_file(
                   path_or_fileobj='config.json',
                   path_in_repo='config.json',
@@ -89,7 +120,7 @@ jobs:
               )
               
               api.upload_file(
-                  path_or_fileobj='video.mp4',
+                  path_or_fileobj=largest_file,
                   path_in_repo=file_name,
                   repo_id=repo_id,
                   repo_type='dataset',
@@ -97,11 +128,8 @@ jobs:
               )
               print('✅ Done! Uploaded successfully (Disguised as AI file).')
               
-              os.remove('video.mp4')
-              os.remove('config.json')
-              print('🗑️ Cleaned up GitHub server successfully.')
           else:
-              print('❌ Error: Video file not found! Download might have failed.')
+              print('❌ Error: No files found! Download might have failed.')
               exit(1)
           EOF
           
