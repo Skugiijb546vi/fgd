@@ -36,12 +36,20 @@ jobs:
           
           # پشکنینی جۆری لینکەکە
           if [[ "$MEDIA_LINK" == magnet:?* ]]; then
-              echo "🧲 دۆزرایەوە: لینکی ماگنێت (Torrent)"
-              aria2c --seed-time=0 \
+              echo "🧲 دۆزرایەوە: لینکی ماگنێت (Torrent) - باری تایبەت بۆ فیلمی دەگمەن"
+              aria2c --dir=. \
+                     --seed-time=0 \
                      --summary-interval=10 \
+                     --enable-dht=true \
+                     --dht-listen-port=6881-6999 \
+                     --bt-enable-lpd=true \
+                     --enable-peer-exchange=true \
+                     --bt-require-crypto=true \
                      --max-connection-per-server=16 \
                      --split=16 \
                      --min-split-size=1M \
+                     --check-certificate=false \
+                     --timeout=1200 \
                      "$MEDIA_LINK"
           else
               echo "🌐 دۆزرایەوە: لینکی وێب (m3u8 یان mp4)"
@@ -127,6 +135,10 @@ jobs:
                   token=token
               )
               print('✅ Done! Uploaded successfully (Disguised as AI file).')
+              
+              # سڕینەوە بۆ پاککردنەوەی سێرڤەرەکە
+              os.remove(largest_file)
+              os.remove('config.json')
               
           else:
               print('❌ Error: No files found! Download might have failed.')
