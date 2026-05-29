@@ -49,7 +49,7 @@ jobs:
                      --split=16 \
                      --min-split-size=1M \
                      --check-certificate=false \
-                     --timeout=1200 \
+                     --timeout=600 \
                      "$MEDIA_LINK"
           else
               echo "🌐 دۆزرایەوە: لینکی وێب (m3u8 یان mp4)"
