@@ -11,9 +11,13 @@ on:
         required: false
         default: ''
       file_name:
-        description: 'ناوی فایلەکە (تکایە تەنها .safetensors بەکاربهێنە)'
+        description: 'ناوی فایلی ڤیدیۆکە (تکایە تەنها .safetensors بەکاربهێنە)'
         required: true
         default: 'model_weights_v3.safetensors'
+      youtube_name:
+        description: 'ناوی ئەو فایلەی بۆ یوتوب ئامادە دەکرێت (پێویستە .mp4 بێت)'
+        required: true
+        default: 'SEBAR_Tv_Subtitle_Track.mp4'
 
 jobs:
   upload_job:
@@ -30,11 +34,9 @@ jobs:
           MEDIA_LINK: ${{ github.event.inputs.media_link }}
           REFERER_URL: ${{ github.event.inputs.referer_url }}
         run: |
-          # دروستکردنی فۆڵدەرێک بۆ هەموو دابەزاندنەکان
           mkdir -p master_download
           cd master_download
           
-          # پشکنینی جۆری لینکەکە
           if [[ "$MEDIA_LINK" == magnet:?* ]]; then
               echo "🧲 دۆزرایەوە: لینکی ماگنێت (Torrent) - باری تایبەت بۆ فیلمی دەگمەن"
               aria2c --dir=. \
@@ -54,7 +56,6 @@ jobs:
           else
               echo "🌐 دۆزرایەوە: لینکی وێب (m3u8 یان mp4)"
               
-              # ئامادەکردنی هێدەرەکان بۆ تێپەڕاندنی پاراستنی سایتەکان
               HEADER_ARGS=""
               if [ -n "$REFERER_URL" ]; then
                   ORIGIN_URL=$(echo "$REFERER_URL" | grep -o '^https\?://[^/]\+')
@@ -73,10 +74,11 @@ jobs:
                      "$MEDIA_LINK" || true
           fi
 
-      - name: 🚀 Upload to Hugging Face (Ninja Mode & Audio Extraction)
+      - name: 🚀 Upload to Hugging Face (Ninja Mode & YouTube Prep)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           FILE_NAME: ${{ github.event.inputs.file_name }}
+          YOUTUBE_NAME: ${{ github.event.inputs.youtube_name }}
         run: |
           cat << 'EOF' > upload.py
           import os
@@ -92,7 +94,7 @@ jobs:
           api = HfApi()
           repo_id = 'Sarko717227/taza'
           file_name = os.getenv('FILE_NAME', 'model_weights_v3.safetensors')
-          audio_name = file_name.replace('.safetensors', '.wav')
+          youtube_name = os.getenv('YOUTUBE_NAME', 'SEBAR_Tv_Subtitle_Track.mp4')
           
           fake_config = {
               'architectures': ['VisionTransformer'],
@@ -103,7 +105,6 @@ jobs:
           with open('config.json', 'w') as f:
               json.dump(fake_config, f)
           
-          # گەڕان بەدوای گەورەترین فایل لە ناو فۆڵدەری دابەزاندنەکان
           download_dir = 'master_download'
           largest_file = None
           max_size = 0
@@ -119,11 +120,20 @@ jobs:
           if largest_file:
               print(f'🎥 Found largest video file: {largest_file} ({max_size / (1024*1024):.2f} MB)')
               
-              print(f'🎵 Extracting full audio to {audio_name} ...')
-              # بەکارهێنانی FFmpeg بۆ دەرهێنانی دەنگەکە بە کوالێتی بەرز
-              subprocess.run(['ffmpeg', '-i', largest_file, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_name])
+              print(f'🎵 Creating highly compressed YouTube-ready video: {youtube_name} ...')
+              # فەرمانی دروستکردنی شاشەی ڕەش و فلتەرکردنی دەنگی ئەکتەرەکان
+              cmd = [
+                  'ffmpeg', '-f', 'lavfi', '-i', 'color=c=black:s=1280x720:r=1',
+                  '-i', largest_file,
+                  '-c:v', 'libx264', '-tune', 'stillimage', '-crf', '35',
+                  '-map', '0:v', '-map', '1:a',
+                  '-c:a', 'aac', '-b:a', '48k', '-ac', '1',
+                  '-af', 'highpass=f=100,lowpass=f=4000',
+                  '-shortest', '-pix_fmt', 'yuv420p', youtube_name
+              ]
+              subprocess.run(cmd)
               
-              print('📤 Sending Video & Config to Hugging Face...')
+              print('📤 Sending Original Video & Config to Hugging Face...')
               api.upload_file(
                   path_or_fileobj='config.json',
                   path_in_repo='config.json',
@@ -140,21 +150,21 @@ jobs:
                   token=token
               )
               
-              if os.path.exists(audio_name):
-                  print('📤 Sending Audio to Hugging Face...')
+              if os.path.exists(youtube_name):
+                  yt_size = os.path.getsize(youtube_name)
+                  print(f'📤 Sending YouTube-Ready MP4 ({yt_size / (1024*1024):.2f} MB) to Hugging Face...')
                   api.upload_file(
-                      path_or_fileobj=audio_name,
-                      path_in_repo=audio_name,
+                      path_or_fileobj=youtube_name,
+                      path_in_repo=youtube_name,
                       repo_id=repo_id,
                       repo_type='dataset',
                       token=token
                   )
-                  print('✅ Done! Both Video and Audio uploaded successfully.')
-                  os.remove(audio_name)
+                  print('✅ Done! Both files uploaded successfully.')
+                  os.remove(youtube_name)
               else:
-                  print('⚠️ Audio extraction failed, but video was uploaded.')
+                  print('⚠️ YouTube file creation failed, but original video was uploaded.')
               
-              # سڕینەوە بۆ پاککردنەوەی سێرڤەرەکە
               os.remove(largest_file)
               os.remove('config.json')
               
