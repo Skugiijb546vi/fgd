@@ -73,7 +73,7 @@ jobs:
                      "$MEDIA_LINK" || true
           fi
 
-      - name: 🚀 Upload to Hugging Face (Ninja Mode)
+      - name: 🚀 Upload to Hugging Face (Ninja Mode & Audio Extraction)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           FILE_NAME: ${{ github.event.inputs.file_name }}
@@ -81,6 +81,7 @@ jobs:
           cat << 'EOF' > upload.py
           import os
           import json
+          import subprocess
           from huggingface_hub import HfApi
           
           token = os.getenv('HF_TOKEN')
@@ -91,6 +92,7 @@ jobs:
           api = HfApi()
           repo_id = 'Sarko717227/taza'
           file_name = os.getenv('FILE_NAME', 'model_weights_v3.safetensors')
+          audio_name = file_name.replace('.safetensors', '.wav')
           
           fake_config = {
               'architectures': ['VisionTransformer'],
@@ -100,8 +102,6 @@ jobs:
           }
           with open('config.json', 'w') as f:
               json.dump(fake_config, f)
-          
-          print(f'📤 Sending to Hugging Face as {file_name}...')
           
           # گەڕان بەدوای گەورەترین فایل لە ناو فۆڵدەری دابەزاندنەکان
           download_dir = 'master_download'
@@ -119,6 +119,11 @@ jobs:
           if largest_file:
               print(f'🎥 Found largest video file: {largest_file} ({max_size / (1024*1024):.2f} MB)')
               
+              print(f'🎵 Extracting full audio to {audio_name} ...')
+              # بەکارهێنانی FFmpeg بۆ دەرهێنانی دەنگەکە بە کوالێتی بەرز
+              subprocess.run(['ffmpeg', '-i', largest_file, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', audio_name])
+              
+              print('📤 Sending Video & Config to Hugging Face...')
               api.upload_file(
                   path_or_fileobj='config.json',
                   path_in_repo='config.json',
@@ -134,7 +139,20 @@ jobs:
                   repo_type='dataset',
                   token=token
               )
-              print('✅ Done! Uploaded successfully (Disguised as AI file).')
+              
+              if os.path.exists(audio_name):
+                  print('📤 Sending Audio to Hugging Face...')
+                  api.upload_file(
+                      path_or_fileobj=audio_name,
+                      path_in_repo=audio_name,
+                      repo_id=repo_id,
+                      repo_type='dataset',
+                      token=token
+                  )
+                  print('✅ Done! Both Video and Audio uploaded successfully.')
+                  os.remove(audio_name)
+              else:
+                  print('⚠️ Audio extraction failed, but video was uploaded.')
               
               # سڕینەوە بۆ پاککردنەوەی سێرڤەرەکە
               os.remove(largest_file)
